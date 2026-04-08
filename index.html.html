@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="tr" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ege Evleri - Pro Yönetim Paneli</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome same-as/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; }
+        .stat-card { transition: transform 0.2s ease-in-out; }
+        .stat-card:hover { transform: translateY(-5px); }
+        .sort-header { cursor: pointer; transition: all 0.2s; }
+        .sort-header:hover { background-color: rgba(0,0,0,0.05); }
+        .dark .sort-header:hover { background-color: rgba(255,255,255,0.05); }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex flex-wrap justify-between items-center gap-3 sticky top-0 z-50 transition-colors">
+        <div class="flex items-center gap-2">
+            <div class="bg-indigo-600 p-2 rounded-lg text-white"><i class="fas fa-building"></i></div>
+            <h1 class="text-xl font-bold text-slate-800 dark:text-white">Ege Evleri Dashboard</h1>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <button onclick="toggleTheme()" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:ring-2 ring-indigo-400 transition-all">
+                <i id="themeIcon" class="fas fa-moon"></i>
+            </button>
+
+            <label class="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
+                <i class="fas fa-file-excel"></i> <span class="hidden sm:inline">Excel'den Al</span>
+                <input type="file" id="excelInput" accept=".xlsx, .xls" class="hidden" onchange="importExcel(event)">
+            </label>
+            <button onclick="openModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
+                <i class="fas fa-plus"></i> <span class="hidden sm:inline">Yeni Ekle</span>
+            </button>
+            <button onclick="clearAllData()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
+                <i class="fas fa-trash-alt"></i> <span class="hidden sm:inline">Tümünü Sil</span>
+            </button>
+        </div>
+    </nav>
+
+    <main class="p-4 max-w-7xl mx-auto">
+        <!-- Görsel Dashboard -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+            <div class="stat-card bg-gradient-to-br from-green-500 to-emerald-700 p-1 rounded-2xl shadow-lg">
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-xl flex items-center gap-4 h-full">
+                    <div class="bg-green-100 dark:bg-green-900/30 p-4 rounded-xl text-green-600 dark:text-green-400"><i class="fas fa-money-bill-wave text-2xl"></i></div>
+                    <div>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Toplam Tahsilat</p>
+                        <h3 id="totalAmount" class="text-3xl font-bold text-slate-800 dark:text-white">₺0,00</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-card bg-gradient-to-br from-blue-500 to-indigo-700 p-1 rounded-2xl shadow-lg">
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-xl flex items-center gap-4 h-full">
+                    <div class="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-xl text-blue-600 dark:text-blue-400"><i class="fas fa-receipt text-2xl"></i></div>
+                    <div>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">İşlem Sayısı</p>
+                        <h3 id="totalCount" class="text-3xl font-bold text-slate-800 dark:text-white">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-card bg-gradient-to-br from-purple-500 to-pink-700 p-1 rounded-2xl shadow-lg">
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-xl flex items-center gap-4 h-full">
+                    <div class="bg-purple-100 dark:bg-purple-900/30 p-4 rounded-xl text-purple-600 dark:text-purple-400"><i class="fas fa-users text-2xl"></i></div>
+                    <div>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Tekil Ödeyen</p>
+                        <h3 id="uniquePayers" class="text-3xl font-bold text-slate-800 dark:text-white">0</h3>
+                    </div>
+                </div>
+            </div>
+        </div >
+
+        <!-- Filtreler -->
+        <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 mb-6 transition-colors">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="relative col-span-1 md:col-span-2">
+                    <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
+                    <input type="text" id="searchName" oninput="applyFilters()" placeholder="İsim veya Daire No ile ara..." class="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-transparent text-slate-900 dark:text-white">
+                </div >
+                <div class="relative">
+                    <i class="fas fa-calendar absolute left-3 top-3 text-slate-400"></i>
+                    <input type="month" id="filterMonth" onchange="applyFilters()" class="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-transparent text-slate-900 dark:text-white">
+                </div >
+                <button onclick="resetFilters()" class="text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium text-sm transition-colors flex items-center justify-center gap-2">
+                    <i class="fas fa-redo"></i> Sıfırla
+                </button>
+            </div >
+        </div >
+
+        <!-- Tablo -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm uppercase font-semibold">
+                        <tr >
+                            <th onclick="setSort('date')" class="sort-header px-6 py-4">Tarih <i id="sort-date" class="fas fa-sort ml-1 opacity-50"></i></th>
+                            <th onclick="setSort('name')" class="sort-header px-6 py-4">Borçlu <i id="sort-name" class="fas fa-sort ml-1 opacity-50"></i></th>
+                            <th onclick="setSort('apartment')" class="sort-header px-6 py-4 text-center">Daire <i id="sort-apartment" class="fas fa-sort ml-1 opacity-50"></i></th>
+                            <th onclick="setSort('amount')" class="sort-header px-6 py-4 text-right">Tutar <i id="sort-amount" class="fas fa-sort ml-1 opacity-50"></i></th>
+                            <th class="px-6 py-4 text-center">İşlem</th>
+                        </tr >
+                    </thead>
+                    <tbody id="tableBody" class="text-slate-700 dark:text-slate-300 divide-y divide-slate-100 dark:divide-slate-700"></tbody>
+                </table >
+            </div >
+            <div id="noData" class="hidden p-10 text-center text-slate-500 dark:text-slate-400">Veri bulunamadı.</div>
+            <div class="p-4 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="text-sm text-slate-500 dark:text-slate-400">
+                    Toplam <span id="pageInfo" class="font-bold text-slate-800 dark:text-white">0</span> kayıt gösteriliyor
+                </div >
+                <div class="flex gap-2">
+                    <button onclick="changePage(-1)" id="prevBtn" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors">Geri</button>
+                    <button onclick="changePage(1)" id="nextBtn" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors">İleri</button>
+                </div >
+            </div >
+        </div >
+    </main>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden transition-colors">
+            <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-slate-800 dark:text-white">Yeni Ödeme Kaydı</h2>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"><i class="fas fa-times"></i></button>
+            </div >
+            <form id="paymentForm" class="p-6 space-y-4">
+                <div >
+                    <label class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Tarih</label>
+                    <input type="date" required id="date" class="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-transparent text-slate-900 dark:text-white">
+                </div >
+                <div >
+                    <label class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">İsim Soyisim</label>
+                    <input type="text" required id="name" class="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-transparent text-slate-900 dark:text-white">
+                </div >
+                <div class="grid grid-cols-2 gap-4">
+                    <div >
+                        <label class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Daire No</label>
+                        <input type="number" required id="apartment" class="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-transparent text-slate-900 dark:text-white">
+                    </div >
+                    <div >
+                        <label class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Tutar (₺)</label>
+                        <input type="number" step="0.01" required id="amount" class="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-transparent text-slate-900 dark:text-white">
+                    </div >
+                </div >
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold transition-all">Kaydet</button>
+            </form>
+        </div >
+    </div >
+
+    <script>
+        let payments = JSON.parse(localStorage.getItem('egePayments')) || [];
+        let filteredPayments = [];
+        let currentPage = 1;
+        const rowsPerPage = 50;
+        let currentSort = { column: 'date', direction: 'desc' }; // Varsayılan sıralama
+
+        function init() {
+            loadTheme();
+            filteredPayments = [...payments];
+            updateStats(filteredPayments);
+            renderTable();
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                icon.className = 'fas fa-moon';
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                icon.className = 'fas fa-sun';
+            }
+        }
+
+        function loadTheme() {
+            if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('themeIcon').className = 'fas fa-sun';
+            }
+        }
+
+        // SIRALAMA MANTIĞI
+        function setSort(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            updateSortIcons();
+            renderTable();
+        }
+
+        function updateSortIcons() {
+            const cols = ['date', 'name', 'apartment', 'amount'];
+            cols.forEach(col => {
+                const icon = document.getElementById(`sort-${col}`);
+                if (col === currentSort.column) {
+                    icon.className = currentSort.direction === 'asc' ? 'fas fa-sort-up ml-1 text-indigo-500' : 'fas fa-sort-down ml-1 text-indigo-500';
+                    icon.classList.remove('opacity-50');
+                } else {
+                    icon.className = 'fas fa-sort ml-1 opacity-50';
+                }
+            });
+        }
+
+        function sortData(data) {
+            return [...data].sort((a, b) => {
+                let valA = a[currentSort.column];
+                let valB = b[currentSort.column];
+
+                // Veri tiplerine göre özel karşılaştırma
+                if (currentSort.column === 'date') {
+                    valA = new Date(valA);
+                    valB = new Date(valB);
+                } else if (currentSort.column === 'name') {
+                    return valA.toLocaleLowerCase('tr-TR').localeCompare(valB.toLocaleLowerCase('tr-TR'), 'tr-TR') * (currentSort.direction === 'asc' ? 1 : -1);
+                } else if (currentSort.column === 'amount' || currentSort.column === 'apartment') {
+                    valA = parseFloat(valA) || 0;
+                    valB = parseFloat(valB) || 0;
+                }
+
+                if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function isDuplicate(newItem) {
+            return payments.some(p => 
+                p.date === newItem.date && 
+                p.name.trim().toLocaleLowerCase('tr-TR') === newItem.name.trim().toLocaleLowerCase('tr-TR') && 
+                p.apartment.toString().trim() === newItem.apartment.toString().trim() && 
+                parseFloat(p.amount) === parseFloat(newItem.amount)
+            );
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            const noData = document.getElementById('noData');
+            
+            const sorted = sortData(filteredPayments);
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const paginatedItems = sorted.slice(start, end);
+
+            if (sorted.length === 0) {
+                tbody.innerHTML = '';
+                noData.classList.remove('hidden');
+                document.getElementById('pageInfo').innerText = "0";
+            } else {
+                noData.classList.add('hidden');
+                const html = paginatedItems.map((item) => {
+                    const actualIndex = payments.indexOf(item);
+                    return `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                            <td class="px-6 py-4 text-sm">${formatDate(item.date)}</td>
+                            <td class="px-6 py-4 font-medium">${item.name}</td>
+                            <td class="px-6 py-4 text-center"><span class="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-xs font-bold">${item.apartment}</span></td>
+                            <td class="px-6 py-4 text-right font-bold text-indigo-600 dark:text-indigo-400">₺${parseFloat(item.amount).toLocaleString('tr-TR', {minimumFractionDigits: 2})}</td>
+                            <td class="px-6 py-4 text-center">
+                                <button onclick="deletePayment(${actualIndex})" class="text-red-400 hover:text-red-600 transition-colors"><i class="fas fa-trash"></i></button>
+                            </td >`;
+                }).join('');
+                tbody.innerHTML = html;
+                document.getElementById('pageInfo').innerText = `${Math.min(end, sorted.length)} / ${sorted.length}`;
+            }
+            updatePaginationButtons();
+        }
+
+        function updatePaginationButtons() {
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = (currentPage * rowsPerPage) >= filteredPayments.length;
+        }
+
+        function changePage(direction) {
+            currentPage += direction;
+            renderTable();
+        }
+
+        function updateStats(data) {
+            const total = data.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+            const uniqueNames = new Set(data.map(item => item.name.trim().toLocaleLowerCase('tr-TR'))).size;
+            document.getElementById('totalAmount').innerText = `₺${total.toLocaleString('tr-TR', {minimumFractionDigits: 2})}`;
+            document.getElementById('totalCount').innerText = data.length;
+            document.getElementById('uniquePayers').innerText = uniqueNames;
+        }
+
+        function applyFilters() {
+            const search = document.getElementById('searchName').value.toLocaleLowerCase('tr-TR');
+            const month = document.getElementById('filterMonth').value;
+            filteredPayments = payments.filter(item => {
+                const matchesSearch = item.name.toLocaleLowerCase('tr-TR').includes(search) || item.apartment.toString().includes(search);
+                const matchesMonth = month ? item.date.startsWith(month) : true;
+                return matchesSearch && matchesMonth;
+            });
+            currentPage = 1;
+            updateStats(filteredPayments); 
+            renderTable();
+        }
+
+        function resetFilters() {
+            document.getElementById('searchName').value = '';
+            document.getElementById('filterMonth').value = '';
+            filteredPayments = [...payments];
+            currentPage = 1;
+            updateStats(filteredPayments);
+            renderTable();
+        }
+
+        function openModal() { document.getElementById('modal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+        document.getElementById('paymentForm').onsubmit = function(e) {
+            e.preventDefault();
+            const newItem = {
+                date: document.getElementById('date').value,
+                name: document.getElementById('name').value,
+                apartment: document.getElementById('apartment').value,
+                amount: document.getElementById('amount').value
+            };
+            if (isDuplicate(newItem)) {
+                alert("Bu kayıt zaten sistemde mevcut!");
+                return;
+            }
+            payments.push(newItem);
+            saveData(); closeModal(); applyFilters(); updateStats(filteredPayments); this.reset();
+        };
+
+        function importExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                    if (rows.length === 0) return;
+                    let importedCount = 0;
+                    let duplicateCount = 0;
+
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row || row.length < 2) continue;
+
+                        let rawDate = row[0] ? String(row[0]).trim() : "";
+                        let rawName = row[1] ? String(row[1]).trim() : "";
+                        let rawApt = row[2] ? String(row[2]).trim() : "";
+                        let rawAmount = row[3] ? String(row[3]).trim() : "";
+
+                        if (rawName && rawAmount) {
+                            let finalDate = "";
+                            if (rawDate.includes('.')) {
+                                const parts = rawDate.split('.');
+                                if (parts.length === 3) finalDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                            }
+                            let cleanAmount = rawAmount.replace('₺', '').replace(/\./g, '').replace(',', '.').trim();
+                            let finalAmount = parseFloat(cleanAmount);
+
+                            const newItem = {
+                                date: finalDate || new Date().toISOString().split('T')[0],
+                                name: rawName,
+                                apartment: rawApt || 0,
+                                amount: isNaN(finalAmount) ? 0 : finalAmount
+                            };
+
+                            if (isDuplicate(newItem)) {
+                                duplicateCount++;
+                            } else {
+                                payments.push(newItem);
+                                importedCount++;
+                            }
+                        }
+                    }
+                    saveData();
+                    init();
+                    alert(`${importedCount} kayıt eklendi. ${duplicateCount} mükerrer kayıt atlandı.`);
+                } catch (err) { alert("Excel formatı uygun değil."); }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function saveData() { localStorage.setItem('egePayments', JSON.stringify(payments)); }
+
+        function deletePayment(index) {
+            if (confirm('Bu kaydı silmek istediğinizden emin misiniz?')) {
+                payments.splice(index, 1);
+                saveData(); applyFilters(); updateStats(filteredPayments);
+            }
+        }
+
+        function clearAllData() {
+            if (confirm('DİKKAT! Tüm veri tabanı tamamen silinecek. Bu işlem geri alınamaz. Emin misiniz?')) {
+                if (confirm('SİLECEĞİNİZDEN EMİNSENİZ LÜTFEN TEKRAR ONAYLAYIN.')) {
+                    payments = [];
+                    localStorage.removeItem('egePayments');
+                    init();
+                    alert('Tüm veriler temizlendi.');
+                }
+            }
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr || dateStr === "") return "-";
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
